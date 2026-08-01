@@ -10,8 +10,8 @@ import {themes as prismThemes} from 'prism-react-renderer';
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'My Site',
-  tagline: 'Dinosaurs are cool',
+  title: 'Wiki Sistemas operativos',
+  tagline: 'Documentacion colaborativa  ',
   favicon: 'img/favicon.ico',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
@@ -83,7 +83,7 @@ const config = {
         respectPrefersColorScheme: true,
       },
       navbar: {
-        title: 'My Site',
+        title: 'Sistemas Operativos',
         logo: {
           alt: 'My Site Logo',
           src: 'img/logo.svg',
@@ -93,7 +93,7 @@ const config = {
             type: 'docSidebar',
             sidebarId: 'tutorialSidebar',
             position: 'left',
-            label: 'Tutorial',
+            label: 'Documentacion',
           },
           {to: '/blog', label: 'Blog', position: 'left'},
           {
@@ -110,7 +110,7 @@ const config = {
             title: 'Docs',
             items: [
               {
-                label: 'Tutorial',
+                label: 'Unidad 1',
                 to: '/docs/intro',
               },
             ],
