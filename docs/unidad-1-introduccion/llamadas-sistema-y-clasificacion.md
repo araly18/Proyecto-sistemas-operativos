@@ -31,6 +31,13 @@ Este mecanismo es la única "puerta" oficial entre el mundo de las aplicaciones 
 
 > **Para profundizar:** en años recientes han aparecido mecanismos como `io_uring` en Linux, que reduce la cantidad de transiciones usuario-kernel necesarias para operaciones de entrada/salida, porque cada cambio de modo tiene un costo de rendimiento (guardar y restaurar el estado del procesador). Esto muestra que el diseño de las syscalls no es solo un detalle técnico: afecta directamente el desempeño de todo el sistema.
 
+```mermaid
+flowchart TD
+    A["Aplicacion (modo usuario)"] -->|"Ejecuta syscall, ej. read()"| B["Trap / instruccion especial (transicion controlada)"]
+    B -->|"CPU cambia de modo"| C["Kernel (modo kernel: ejecuta la operacion)"]
+    C -->|"Entrega el resultado"| D["Aplicacion (vuelve a modo usuario)"]
+```
+
 ## Clasificación de los sistemas operativos
 
 Los sistemas operativos se pueden clasificar desde distintos ángulos. No son categorías excluyentes: un mismo SO puede describirse con varias de ellas a la vez.
