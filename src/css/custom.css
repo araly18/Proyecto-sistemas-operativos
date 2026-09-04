@@ -1,30 +1,46 @@
-/**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
- */
-
-/* You can override the default Infima variables here. */
 :root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
+  --ifm-color-primary: #3a5a78;
+  --ifm-color-primary-dark: #34506b;
+  --ifm-color-primary-darker: #314c65;
+  --ifm-color-primary-darkest: #283e53;
+  --ifm-color-primary-light: #406484;
+  --ifm-color-primary-lighter: #43698b;
+  --ifm-color-primary-lightest: #4f78a0;
   --ifm-code-font-size: 95%;
+  --wiki-accent: #c9922f;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  --ifm-background-color: #f7f8fa;
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
 [data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
+  --ifm-color-primary: #7fa8cc;
+  --ifm-color-primary-dark: #6797c1;
+  --ifm-color-primary-darker: #598fbb;
+  --ifm-color-primary-darkest: #40739e;
+  --ifm-color-primary-light: #97b9d7;
+  --ifm-color-primary-lighter: #a4c1db;
+  --ifm-color-primary-lightest: #c6d9e9;
+  --wiki-accent: #dba954;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* Notas "Para profundizar" con borde de acento, en vez de solo cursiva */
+.markdown blockquote {
+  border-left: 4px solid var(--wiki-accent);
+  background-color: rgba(201, 146, 47, 0.07);
+  font-style: normal;
+}
+
+/* Encabezado de tablas con el color de marca */
+.markdown table thead tr {
+  background-color: var(--ifm-color-primary);
+}
+.markdown table thead th {
+  color: #fff;
+}
+
+/* Item activo del menu lateral con el acento, para diferenciarlo del azul-gris base */
+.menu__link--active:not(.menu__link--sublist) {
+  color: var(--wiki-accent);
+  font-weight: 600;
 }

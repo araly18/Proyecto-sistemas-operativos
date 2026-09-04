@@ -43,6 +43,19 @@ Una limitación conocida de este modelo es el llamado **"cuello de botella de Vo
 
 Nace del Harvard Mark I (años 40). A diferencia de Von Neumann, **separa físicamente** la memoria de instrucciones y la memoria de datos, cada una con su propio bus. Esto permite que la CPU acceda a ambas simultáneamente, evitando el cuello de botella mencionado arriba, y permite además que cada memoria tenga un ancho de palabra distinto.
 
+```mermaid
+flowchart TB
+    subgraph VN["Arquitectura Von Neumann"]
+        direction TB
+        CPU1["CPU (ALU + CU)"] <-->|"Bus único: datos + instrucciones"| MEM1["Memoria principal"]
+    end
+    subgraph HV["Arquitectura Harvard"]
+        direction TB
+        CPU2["CPU (ALU + CU)"] <-->|"Bus de instrucciones"| MEMI["Memoria de instrucciones"]
+        CPU2 <-->|"Bus de datos"| MEMD["Memoria de datos"]
+    end
+```
+
 > **Para profundizar:** los procesadores modernos de propósito general (como los que usa una laptop) suelen implementar una versión híbrida, conocida como **arquitectura Harvard modificada**: usan una sola memoria principal (como Von Neumann) pero mantienen cachés de instrucciones y de datos separadas dentro del propio chip, para obtener parte de las ventajas de ambos modelos.
 
 ## Software: las capas por encima del hardware
