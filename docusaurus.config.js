@@ -20,7 +20,7 @@ const config = {
   },
 
   // Set the production url of your site here
-  url: 'https://wiki-sistemas-operativos.onrender.com',
+  url: 'https://proyecto-sistemas-operativos-aybi.onrender.com',
   // Set the /<baseUrl>/ pathname under which your site is served
   baseUrl: '/',
 
