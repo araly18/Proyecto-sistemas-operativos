@@ -2,13 +2,13 @@
 sidebar_position: 2
 ---
 
-# Simulador Avanzado de Gestión de Procesos
+# Simulador de Gestión de Procesos
 
 import SimuladorAvanzado from '@site/src/components/SimuladorAvanzado';
 
-## 🚀 Simulador interactivo completo
+##  Simulador interactivo completo
 
-Aquí puedes experimentar con un **simulador profesional** que incluye:
+Aquí puedes experimentar con un **simulador ** que incluye:
 
 ✅ **Temporizador automático** — Los procesos se ejecutan en tiempo real  
 ✅ **Algoritmos de planificación** — FIFO, Priority, SJF  
@@ -16,7 +16,7 @@ Aquí puedes experimentar con un **simulador profesional** que incluye:
 ✅ **Gráfico en vivo** — Historial de uso de RAM  
 ✅ **Pausar/Reanudar** — Control total de la simulación  
 ✅ **Generar procesos aleatorios** — Para pruebas rápidas  
-✅ **Exportar reporte** — Descargar datos en JSON  
+✅ **Exportar reporte** — Descargar datos en  txt y pdf
 ✅ **Prioridades** — Soporte para procesos prioritarios  
 
 ---
@@ -42,6 +42,7 @@ Selecciona entre:
 - **FIFO** (First In, First Out) — Procesa en orden de llegada
 - **Priority** — Procesa por prioridad
 - **SJF** (Shortest Job First) — Procesa tareas cortas primero
+- **FIFO** (First In, First Out) — Procesa en orden de salida
 
 ### 4️⃣ Aplicar algoritmo
 Haz clic en **🔄 Aplicar** para reorganizar la cola según el algoritmo seleccionado.
@@ -86,6 +87,8 @@ Se ejecutan primero los de mayor prioridad. **Ventaja:** respeta importancia. **
 ### SJF (Shortest Job First)
 Se ejecutan primero los procesos más cortos. **Ventaja:** menor tiempo medio. **Desventaja:** favorece procesos cortos.
 
+### LIFO (Last In, First Out")
+último en entrar, primero en salir. **Ventaja:** beneficia a las tareas más recientes **Desventaja:** os procesos antiguos pueden quedar bloqueados indefinidamente 
 ---
 
 ## Conexión con conceptos reales
@@ -104,10 +107,10 @@ Lo que ves aquí sucede también en un **Sistema Operativo real**:
 
 ## Exportar reporte
 
-Cuando hagas clic en **💾 Exportar**, se descarga un archivo `reporte-simulador-TIMESTAMP.json` con:
+ con:
 - Tiempo total de simulación
 - Procesos finalizados
 - Historial de uso de RAM
 - Algoritmo utilizado
 
-Puedes abrir este archivo en cualquier editor de texto o analizarlo en herramientas como Excel.
+Puedes abrir este archivo en pdf o txt.

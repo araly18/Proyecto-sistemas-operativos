@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export default function SimuladorAvanzado() {
   // ==================== ESTADO ====================
@@ -13,6 +15,8 @@ export default function SimuladorAvanzado() {
   const [algoritmo, setAlgoritmo] = useState('FIFO');
   const [historialRAM, setHistorialRAM] = useState([]);
   const [procesoActual, setProcesoActual] = useState(null);
+  const [tiempoPromedio, setTiempoPromedio] = useState(0);
+  const [tiempoEspera, setTiempoEspera] = useState(0);
 
   const RAM_TOTAL = 1024;
   const ramUsada = RAM_TOTAL - ramDisponible;
@@ -49,10 +53,16 @@ export default function SimuladorAvanzado() {
       if (tiempoTotal % 5 === 0) {
         setHistorialRAM(prev => [...prev, { tiempo: tiempoTotal, ram: ramUsada }].slice(-50));
       }
+
+      // Calcular tiempos
+      if (finalizados.length > 0) {
+        const promedio = finalizados.reduce((sum, p) => sum + p.duracion, 0) / finalizados.length;
+        setTiempoPromedio(promedio.toFixed(2));
+      }
     }, 1000);
 
     return () => clearInterval(intervalo);
-  }, [pausado, tiempoTotal, ramUsada]);
+  }, [pausado, tiempoTotal, ramUsada, finalizados]);
 
   // ==================== FUNCIONES ====================
   const crearProceso = (e) => {
@@ -92,8 +102,8 @@ export default function SimuladorAvanzado() {
 
     for (let i = 0; i < cantidad; i++) {
       const nombre = nombres[Math.floor(Math.random() * nombres.length)];
-      const memoria = Math.floor(Math.random() * 400) + 64; // 64-464 MB
-      const duracion = Math.floor(Math.random() * 15) + 3; // 3-18 seg
+      const memoria = Math.floor(Math.random() * 400) + 64;
+      const duracion = Math.floor(Math.random() * 15) + 3;
       const prioridad = Math.floor(Math.random() * 5) + 1;
 
       const nuevoProceso = {
@@ -125,13 +135,14 @@ export default function SimuladorAvanzado() {
 
     if (algoritmo === 'FIFO') {
       // Ya está ordenado
+    } else if (algoritmo === 'LIFO') {
+      procesosOrdenados.reverse(); // Último en entrar, primero en salir
     } else if (algoritmo === 'Priority') {
       procesosOrdenados.sort((a, b) => a.prioridad - b.prioridad);
     } else if (algoritmo === 'SJF') {
       procesosOrdenados.sort((a, b) => a.duracion - b.duracion);
     }
 
-    // Intentar ejecutar procesos de la cola
     const nuevosEnEjecucion = [];
     const nuevaCola = [];
 
@@ -169,96 +180,138 @@ export default function SimuladorAvanzado() {
     setProcesoActual(null);
   };
 
-  const exportarReporte = () => {
-    const reporte = {
-      timestamp: new Date().toLocaleString(),
-      tiempoTotal,
-      ramFinal: ramDisponible,
-      algoritmo,
-      procesosFinalizados: finalizados.length,
-      procesos: finalizados,
-      historialRAM
-    };
+  // ==================== EXPORTAR A TXT ====================
+  const exportarTXT = () => {
+    let contenido = `==============================================\n`;
+    contenido += `REPORTE DE SIMULACIÓN - GESTIÓN DE PROCESOS\n`;
+    contenido += `==============================================\n\n`;
+    contenido += `Fecha: ${new Date().toLocaleString()}\n`;
+    contenido += `Algoritmo: ${algoritmo}\n`;
+    contenido += `Tiempo total: ${tiempoTotal}s\n`;
+    contenido += `Procesos finalizados: ${finalizados.length}\n`;
+    contenido += `Procesos en cola: ${cola.length}\n`;
+    contenido += `Procesos en ejecución: ${procesos.length}\n`;
+    contenido += `RAM disponible: ${ramDisponible}MB / ${RAM_TOTAL}MB\n\n`;
 
-    const json = JSON.stringify(reporte, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
+    contenido += `PROCESOS FINALIZADOS:\n`;
+    contenido += `---------------------------------------------\n`;
+    finalizados.forEach(p => {
+      contenido += `PID: ${p.pid} | Nombre: ${p.nombre} | Memoria: ${p.memoria}MB | Duración: ${p.duracion}s | Prioridad: ${p.prioridad}\n`;
+    });
+
+    contenido += `\nPROCESOS EN COLA:\n`;
+    contenido += `---------------------------------------------\n`;
+    if (cola.length === 0) {
+      contenido += `Ninguno\n`;
+    } else {
+      cola.forEach(p => {
+        contenido += `PID: ${p.pid} | Nombre: ${p.nombre} | Memoria: ${p.memoria}MB | Duración: ${p.duracion}s | Prioridad: ${p.prioridad}\n`;
+      });
+    }
+
+    contenido += `\nESTADÍSTICAS:\n`;
+    contenido += `---------------------------------------------\n`;
+    contenido += `Tiempo promedio de ejecución: ${tiempoPromedio}s\n`;
+    contenido += `Tiempo de espera promedio: ${tiempoEspera}s\n`;
+    contenido += `Uso máximo de RAM: ${Math.max(...historialRAM.map(h => h.ram), 0)}MB\n`;
+
+    const blob = new Blob([contenido], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `reporte-simulador-${Date.now()}.json`;
+    a.download = `reporte-simulador-${Date.now()}.txt`;
     a.click();
   };
 
+  // ==================== EXPORTAR A PDF ====================
+  const exportarPDF = async () => {
+    const element = document.getElementById('simulador-contenido');
+    const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#1a1a1a' });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    
+    const imgWidth = 210;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+    pdf.save(`reporte-simulador-${Date.now()}.pdf`);
+  };
+
   const getColorRam = () => {
-    if (porcentaje < 60) return '#00ff00';
-    if (porcentaje < 85) return '#ffff00';
-    return '#ff0000';
+    if (porcentaje < 60) return '#7cb342';
+    if (porcentaje < 85) return '#daa520';
+    return '#d32f2f';
   };
 
   const getColorEstado = (estado) => {
     const colores = {
-      'nuevo': '#9900ff',
-      'ejecutando': '#00ff00',
-      'bloqueado': '#ffff00',
-      'finalizado': '#00ffff'
+      'nuevo': '#9575cd',
+      'ejecutando': '#81c784',
+      'bloqueado': '#ffb74d',
+      'finalizado': '#64b5f6'
     };
-    return colores[estado] || '#ffffff';
+    return colores[estado] || '#b0bec5';
   };
 
   return (
-    <div style={{ fontFamily: 'Courier New, monospace', color: '#00ff00', backgroundColor: '#0a0a0a', padding: '20px', borderRadius: '8px', marginTop: '20px', border: '2px solid #00ff00' }}>
-      <h2 style={{ color: '#00ffff', textAlign: 'center' }}>🚀 SIMULADOR AVANZADO DE GESTIÓN DE PROCESOS</h2>
+    <div id="simulador-contenido" style={{ fontFamily: 'Courier New, monospace', color: '#b0bec5', backgroundColor: '#263238', padding: '20px', borderRadius: '8px', marginTop: '20px', border: '2px solid #37474f' }}>
+      <h2 style={{ color: '#80deea', textAlign: 'center' }}>SIMULADOR AVANZADO DE GESTIÓN DE PROCESOS</h2>
 
       {/* ==================== PANEL DE CONTROL ==================== */}
-      <div style={{ backgroundColor: '#1a1a1a', padding: '15px', borderRadius: '4px', marginBottom: '20px', border: '1px solid #00ff00' }}>
-        <h3 style={{ color: '#ffff00', marginTop: '0' }}>⚙️ Panel de Control</h3>
+      <div style={{ backgroundColor: '#37474f', padding: '15px', borderRadius: '4px', marginBottom: '20px', border: '1px solid #546e7a' }}>
+        <h3 style={{ color: '#fff59d', marginTop: '0' }}>⚙️ Panel de Control</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', marginBottom: '10px' }}>
           <div>
-            <label style={{ color: '#00ffff' }}>Algoritmo: </label>
-            <select value={algoritmo} onChange={(e) => setAlgoritmo(e.target.value)} style={{ backgroundColor: '#1e1e1e', color: '#00ff00', border: '1px solid #00ff00', padding: '5px', width: '100%' }}>
+            <label style={{ color: '#80deea' }}>Algoritmo: </label>
+            <select value={algoritmo} onChange={(e) => setAlgoritmo(e.target.value)} style={{ backgroundColor: '#263238', color: '#81c784', border: '1px solid #546e7a', padding: '5px', width: '100%' }}>
               <option>FIFO</option>
+              <option>LIFO</option>
               <option>Priority</option>
               <option>SJF</option>
             </select>
           </div>
           <div>
-            <button onClick={() => setPausado(!pausado)} style={{ backgroundColor: pausado ? '#ff6600' : '#00ff00', color: '#000', border: 'none', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
+            <button onClick={() => setPausado(!pausado)} style={{ backgroundColor: pausado ? '#ff9800' : '#81c784', color: '#000', border: 'none', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
               {pausado ? '▶️ Reanudar' : '⏸️ Pausar'}
             </button>
           </div>
           <div>
-            <button onClick={generarAleatorios} style={{ backgroundColor: '#0066ff', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
+            <button onClick={generarAleatorios} style={{ backgroundColor: '#64b5f6', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
               🎲 Generar
             </button>
           </div>
           <div>
-            <button onClick={aplicarAlgoritmo} style={{ backgroundColor: '#ff00ff', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
+            <button onClick={aplicarAlgoritmo} style={{ backgroundColor: '#ba68c8', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
               🔄 Aplicar
             </button>
           </div>
           <div>
-            <button onClick={exportarReporte} style={{ backgroundColor: '#00cccc', color: '#000', border: 'none', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
-              💾 Exportar
+            <button onClick={exportarTXT} style={{ backgroundColor: '#4db6ac', color: '#000', border: 'none', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
+              📄 TXT
             </button>
           </div>
           <div>
-            <button onClick={limpiar} style={{ backgroundColor: '#ff0000', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
+            <button onClick={exportarPDF} style={{ backgroundColor: '#ef5350', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
+              📕 PDF
+            </button>
+          </div>
+          <div>
+            <button onClick={limpiar} style={{ backgroundColor: '#90a4ae', color: '#000', border: 'none', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
               🗑️ Limpiar
             </button>
           </div>
         </div>
-        <div style={{ fontSize: '12px', color: '#ffff00' }}>
-          ⏱️ Tiempo: {tiempoTotal}s | 💾 Procesos finalizados: {finalizados.length} | 🔄 En cola: {cola.length}
+        <div style={{ fontSize: '12px', color: '#fff59d' }}>
+          ⏱️ Tiempo: {tiempoTotal}s | 💾 Finalizados: {finalizados.length} | 🔄 En cola: {cola.length} | 📊 Ejecutando: {procesos.length}
         </div>
       </div>
 
       {/* ==================== BARRA RAM ==================== */}
       <div style={{ marginBottom: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-          <span style={{ color: '#00ffff' }}>📊 Uso de RAM</span>
-          <span style={{ color: '#ffff00' }}>{ramUsada}MB / {RAM_TOTAL}MB ({porcentaje}%)</span>
+          <span style={{ color: '#80deea' }}>📊 Uso de RAM</span>
+          <span style={{ color: '#fff59d' }}>{ramUsada}MB / {RAM_TOTAL}MB ({porcentaje}%)</span>
         </div>
-        <div style={{ backgroundColor: '#333', width: '100%', height: '40px', borderRadius: '4px', border: '2px solid #00ff00', overflow: 'hidden' }}>
+        <div style={{ backgroundColor: '#455a64', width: '100%', height: '40px', borderRadius: '4px', border: '2px solid #546e7a', overflow: 'hidden' }}>
           <div style={{ width: `${(porcentaje / 100) * 100}%`, height: '100%', backgroundColor: getColorRam(), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 'bold', fontSize: '14px', transition: 'all 0.3s ease' }}>
             {porcentaje}%
           </div>
@@ -267,77 +320,77 @@ export default function SimuladorAvanzado() {
 
       {/* ==================== GRÁFICO RAM ==================== */}
       {historialRAM.length > 0 && (
-        <div style={{ marginBottom: '20px', backgroundColor: '#1a1a1a', padding: '10px', borderRadius: '4px', border: '1px solid #00ff00' }}>
-          <h4 style={{ color: '#00ffff', marginTop: '0' }}>📈 Historial de RAM</h4>
+        <div style={{ marginBottom: '20px', backgroundColor: '#37474f', padding: '10px', borderRadius: '4px', border: '1px solid #546e7a' }}>
+          <h4 style={{ color: '#80deea', marginTop: '0' }}>📈 Historial de RAM</h4>
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={historialRAM}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-              <XAxis dataKey="tiempo" stroke="#00ff00" />
-              <YAxis stroke="#00ff00" domain={[0, 1024]} />
-              <Tooltip contentStyle={{ backgroundColor: '#1e1e1e', border: '1px solid #00ff00', color: '#00ff00' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#455a64" />
+              <XAxis dataKey="tiempo" stroke="#81c784" />
+              <YAxis stroke="#81c784" domain={[0, 1024]} />
+              <Tooltip contentStyle={{ backgroundColor: '#263238', border: '1px solid #546e7a', color: '#81c784' }} />
               <Legend />
-              <Line type="monotone" dataKey="ram" stroke="#00ff00" dot={false} name="RAM usada (MB)" />
+              <Line type="monotone" dataKey="ram" stroke="#81c784" dot={false} name="RAM usada (MB)" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         </div>
       )}
 
       {/* ==================== FORMULARIO CREAR PROCESO ==================== */}
-      <div style={{ backgroundColor: '#1a1a1a', padding: '15px', borderRadius: '4px', marginBottom: '20px', border: '1px solid #ffff00' }}>
-        <h3 style={{ color: '#ffff00', marginTop: '0' }}>➕ Crear nuevo proceso</h3>
+      <div style={{ backgroundColor: '#37474f', padding: '15px', borderRadius: '4px', marginBottom: '20px', border: '1px solid #546e7a' }}>
+        <h3 style={{ color: '#fff59d', marginTop: '0' }}>➕ Crear nuevo proceso</h3>
         <form onSubmit={crearProceso}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginBottom: '10px' }}>
             <div>
-              <label style={{ color: '#00ffff' }}>Nombre: </label>
-              <input type="text" name="nombre" placeholder="Mi_App" style={{ backgroundColor: '#1e1e1e', color: '#00ff00', border: '1px solid #00ff00', padding: '8px', width: '100%', boxSizing: 'border-box', fontFamily: 'Courier New, monospace' }} />
+              <label style={{ color: '#80deea' }}>Nombre: </label>
+              <input type="text" name="nombre" placeholder="Mi_App" style={{ backgroundColor: '#263238', color: '#81c784', border: '1px solid #546e7a', padding: '8px', width: '100%', boxSizing: 'border-box', fontFamily: 'Courier New, monospace' }} />
             </div>
             <div>
-              <label style={{ color: '#00ffff' }}>Memoria (MB): </label>
-              <input type="number" name="memoria" defaultValue="256" min="1" max="1024" style={{ backgroundColor: '#1e1e1e', color: '#00ff00', border: '1px solid #00ff00', padding: '8px', width: '100%', boxSizing: 'border-box', fontFamily: 'Courier New, monospace' }} />
+              <label style={{ color: '#80deea' }}>Memoria (MB): </label>
+              <input type="number" name="memoria" defaultValue="256" min="1" max="1024" style={{ backgroundColor: '#263238', color: '#81c784', border: '1px solid #546e7a', padding: '8px', width: '100%', boxSizing: 'border-box', fontFamily: 'Courier New, monospace' }} />
             </div>
             <div>
-              <label style={{ color: '#00ffff' }}>Duración (s): </label>
-              <input type="number" name="duracion" defaultValue="5" min="1" max="60" style={{ backgroundColor: '#1e1e1e', color: '#00ff00', border: '1px solid #00ff00', padding: '8px', width: '100%', boxSizing: 'border-box', fontFamily: 'Courier New, monospace' }} />
+              <label style={{ color: '#80deea' }}>Duración (s): </label>
+              <input type="number" name="duracion" defaultValue="5" min="1" max="60" style={{ backgroundColor: '#263238', color: '#81c784', border: '1px solid #546e7a', padding: '8px', width: '100%', boxSizing: 'border-box', fontFamily: 'Courier New, monospace' }} />
             </div>
             <div>
-              <label style={{ color: '#00ffff' }}>Prioridad (1-5): </label>
-              <input type="number" name="prioridad" defaultValue="1" min="1" max="5" style={{ backgroundColor: '#1e1e1e', color: '#00ff00', border: '1px solid #00ff00', padding: '8px', width: '100%', boxSizing: 'border-box', fontFamily: 'Courier New, monospace' }} />
+              <label style={{ color: '#80deea' }}>Prioridad (1-5): </label>
+              <input type="number" name="prioridad" defaultValue="1" min="1" max="5" style={{ backgroundColor: '#263238', color: '#81c784', border: '1px solid #546e7a', padding: '8px', width: '100%', boxSizing: 'border-box', fontFamily: 'Courier New, monospace' }} />
             </div>
           </div>
-          <button type="submit" style={{ backgroundColor: '#00ff00', color: '#000', border: 'none', padding: '10px 20px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>➕ Crear proceso</button>
+          <button type="submit" style={{ backgroundColor: '#81c784', color: '#000', border: 'none', padding: '10px 20px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>➕ Crear proceso</button>
         </form>
       </div>
 
       {/* ==================== PROCESOS EN EJECUCIÓN ==================== */}
       <div style={{ marginBottom: '20px' }}>
-        <h3 style={{ color: '#00ffff' }}>▶️ Procesos en ejecución ({procesos.length})</h3>
+        <h3 style={{ color: '#80deea' }}>▶️ Procesos en ejecución ({procesos.length})</h3>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead>
-              <tr style={{ backgroundColor: '#0066ff', color: '#fff' }}>
-                <th style={{ border: '1px solid #00ff00', padding: '8px', textAlign: 'left' }}>PID</th>
-                <th style={{ border: '1px solid #00ff00', padding: '8px', textAlign: 'left' }}>Nombre</th>
-                <th style={{ border: '1px solid #00ff00', padding: '8px', textAlign: 'left' }}>Estado</th>
-                <th style={{ border: '1px solid #00ff00', padding: '8px', textAlign: 'left' }}>Memoria (MB)</th>
-                <th style={{ border: '1px solid #00ff00', padding: '8px', textAlign: 'left' }}>Duración</th>
-                <th style={{ border: '1px solid #00ff00', padding: '8px', textAlign: 'left' }}>Prioridad</th>
-                <th style={{ border: '1px solid #00ff00', padding: '8px', textAlign: 'left' }}>Acción</th>
+              <tr style={{ backgroundColor: '#455a64', color: '#fff' }}>
+                <th style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'left' }}>PID</th>
+                <th style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'left' }}>Nombre</th>
+                <th style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'left' }}>Estado</th>
+                <th style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'left' }}>Memoria (MB)</th>
+                <th style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'left' }}>Duración</th>
+                <th style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'left' }}>Prioridad</th>
+                <th style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'left' }}>Acción</th>
               </tr>
             </thead>
             <tbody>
               {procesos.length === 0 ? (
-                <tr><td colSpan="7" style={{ border: '1px solid #444', padding: '8px', textAlign: 'center', color: '#888' }}>— Ninguno —</td></tr>
+                <tr><td colSpan="7" style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'center', color: '#90a4ae' }}>— Ninguno —</td></tr>
               ) : (
                 procesos.map(p => (
-                  <tr key={p.pid} style={{ backgroundColor: '#1a4d1a', borderLeft: `3px solid ${getColorEstado(p.estado)}` }}>
-                    <td style={{ border: '1px solid #444', padding: '8px' }}>{p.pid}</td>
-                    <td style={{ border: '1px solid #444', padding: '8px' }}>{p.nombre}</td>
-                    <td style={{ border: '1px solid #444', padding: '8px', color: getColorEstado(p.estado) }}>{p.estado}</td>
-                    <td style={{ border: '1px solid #444', padding: '8px' }}>{p.memoria}</td>
-                    <td style={{ border: '1px solid #444', padding: '8px' }}>{p.tiempoRestante}s / {p.duracion}s</td>
-                    <td style={{ border: '1px solid #444', padding: '8px' }}>⭐{p.prioridad}</td>
-                    <td style={{ border: '1px solid #444', padding: '8px' }}>
-                      <button onClick={() => terminarProceso(p.pid)} style={{ backgroundColor: '#ff0000', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '2px', cursor: 'pointer', fontSize: '10px' }}>✕</button>
+                  <tr key={p.pid} style={{ backgroundColor: '#37474f', borderLeft: `3px solid ${getColorEstado(p.estado)}` }}>
+                    <td style={{ border: '1px solid #546e7a', padding: '8px' }}>{p.pid}</td>
+                    <td style={{ border: '1px solid #546e7a', padding: '8px' }}>{p.nombre}</td>
+                    <td style={{ border: '1px solid #546e7a', padding: '8px', color: getColorEstado(p.estado) }}>{p.estado}</td>
+                    <td style={{ border: '1px solid #546e7a', padding: '8px' }}>{p.memoria}</td>
+                    <td style={{ border: '1px solid #546e7a', padding: '8px' }}>{p.tiempoRestante}s / {p.duracion}s</td>
+                    <td style={{ border: '1px solid #546e7a', padding: '8px' }}>⭐{p.prioridad}</td>
+                    <td style={{ border: '1px solid #546e7a', padding: '8px' }}>
+                      <button onClick={() => terminarProceso(p.pid)} style={{ backgroundColor: '#ef5350', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '2px', cursor: 'pointer', fontSize: '10px' }}>✕</button>
                     </td>
                   </tr>
                 ))
@@ -349,29 +402,29 @@ export default function SimuladorAvanzado() {
 
       {/* ==================== COLA DE ESPERA ==================== */}
       <div style={{ marginBottom: '20px' }}>
-        <h3 style={{ color: '#ffff00' }}>⏳ Cola de espera ({cola.length})</h3>
+        <h3 style={{ color: '#fff59d' }}>⏳ Cola de espera ({cola.length})</h3>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead>
-              <tr style={{ backgroundColor: '#664400', color: '#fff' }}>
-                <th style={{ border: '1px solid #ffff00', padding: '8px', textAlign: 'left' }}>PID</th>
-                <th style={{ border: '1px solid #ffff00', padding: '8px', textAlign: 'left' }}>Nombre</th>
-                <th style={{ border: '1px solid #ffff00', padding: '8px', textAlign: 'left' }}>Memoria (MB)</th>
-                <th style={{ border: '1px solid #ffff00', padding: '8px', textAlign: 'left' }}>Duración</th>
-                <th style={{ border: '1px solid #ffff00', padding: '8px', textAlign: 'left' }}>Prioridad</th>
+              <tr style={{ backgroundColor: '#5d4037', color: '#fff' }}>
+                <th style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'left' }}>PID</th>
+                <th style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'left' }}>Nombre</th>
+                <th style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'left' }}>Memoria (MB)</th>
+                <th style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'left' }}>Duración</th>
+                <th style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'left' }}>Prioridad</th>
               </tr>
             </thead>
             <tbody>
               {cola.length === 0 ? (
-                <tr><td colSpan="5" style={{ border: '1px solid #444', padding: '8px', textAlign: 'center', color: '#888' }}>— Ninguno —</td></tr>
+                <tr><td colSpan="5" style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'center', color: '#90a4ae' }}>— Ninguno —</td></tr>
               ) : (
                 cola.map(p => (
-                  <tr key={p.pid} style={{ backgroundColor: '#4d3300' }}>
-                    <td style={{ border: '1px solid #444', padding: '8px' }}>{p.pid}</td>
-                    <td style={{ border: '1px solid #444', padding: '8px' }}>{p.nombre}</td>
-                    <td style={{ border: '1px solid #444', padding: '8px' }}>{p.memoria}</td>
-                    <td style={{ border: '1px solid #444', padding: '8px' }}>{p.duracion}s</td>
-                    <td style={{ border: '1px solid #444', padding: '8px' }}>⭐{p.prioridad}</td>
+                  <tr key={p.pid} style={{ backgroundColor: '#37474f' }}>
+                    <td style={{ border: '1px solid #546e7a', padding: '8px' }}>{p.pid}</td>
+                    <td style={{ border: '1px solid #546e7a', padding: '8px' }}>{p.nombre}</td>
+                    <td style={{ border: '1px solid #546e7a', padding: '8px' }}>{p.memoria}</td>
+                    <td style={{ border: '1px solid #546e7a', padding: '8px' }}>{p.duracion}s</td>
+                    <td style={{ border: '1px solid #546e7a', padding: '8px' }}>⭐{p.prioridad}</td>
                   </tr>
                 ))
               )}
@@ -382,27 +435,27 @@ export default function SimuladorAvanzado() {
 
       {/* ==================== PROCESOS FINALIZADOS ==================== */}
       <div>
-        <h3 style={{ color: '#00ffff' }}>✔️ Procesos finalizados ({finalizados.length})</h3>
+        <h3 style={{ color: '#64b5f6' }}>✔️ Procesos finalizados ({finalizados.length})</h3>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead>
-              <tr style={{ backgroundColor: '#333333', color: '#fff' }}>
-                <th style={{ border: '1px solid #888', padding: '8px', textAlign: 'left' }}>PID</th>
-                <th style={{ border: '1px solid #888', padding: '8px', textAlign: 'left' }}>Nombre</th>
-                <th style={{ border: '1px solid #888', padding: '8px', textAlign: 'left' }}>Memoria (MB)</th>
-                <th style={{ border: '1px solid #888', padding: '8px', textAlign: 'left' }}>Tiempo exec</th>
+              <tr style={{ backgroundColor: '#455a64', color: '#fff' }}>
+                <th style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'left' }}>PID</th>
+                <th style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'left' }}>Nombre</th>
+                <th style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'left' }}>Memoria (MB)</th>
+                <th style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'left' }}>Tiempo exec</th>
               </tr>
             </thead>
             <tbody>
               {finalizados.length === 0 ? (
-                <tr><td colSpan="4" style={{ border: '1px solid #444', padding: '8px', textAlign: 'center', color: '#888' }}>— Ninguno —</td></tr>
+                <tr><td colSpan="4" style={{ border: '1px solid #546e7a', padding: '8px', textAlign: 'center', color: '#90a4ae' }}>— Ninguno —</td></tr>
               ) : (
                 finalizados.map(p => (
-                  <tr key={p.pid} style={{ backgroundColor: '#3d3d3d' }}>
-                    <td style={{ border: '1px solid #444', padding: '8px' }}>{p.pid}</td>
-                    <td style={{ border: '1px solid #444', padding: '8px' }}>{p.nombre}</td>
-                    <td style={{ border: '1px solid #444', padding: '8px' }}>{p.memoria}</td>
-                    <td style={{ border: '1px solid #444', padding: '8px' }}>{p.duracion}s</td>
+                  <tr key={p.pid} style={{ backgroundColor: '#37474f' }}>
+                    <td style={{ border: '1px solid #546e7a', padding: '8px' }}>{p.pid}</td>
+                    <td style={{ border: '1px solid #546e7a', padding: '8px' }}>{p.nombre}</td>
+                    <td style={{ border: '1px solid #546e7a', padding: '8px' }}>{p.memoria}</td>
+                    <td style={{ border: '1px solid #546e7a', padding: '8px' }}>{p.duracion}s</td>
                   </tr>
                 ))
               )}
