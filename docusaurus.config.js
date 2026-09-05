@@ -20,9 +20,9 @@ const config = {
   },
 
   // Set the production url of your site here
-  url: 'https://araly18.github.io',
+  url: 'https://wiki-sistemas-operativos.onrender.com',
   // Set the /<baseUrl>/ pathname under which your site is served
-  baseUrl: '/Proyecto-sistemas-operativos/',
+  baseUrl: '/',
 
   // GitHub pages deployment config.
   organizationName: 'araly18', // Usuario de GitHub
