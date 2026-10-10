@@ -1,0 +1,12 @@
+{
+  "cuentas": [
+    { "id": 1, "nombre": "Cuenta Herny", "saldo": 5000, "titular": "Herny" },
+    { "id": 2, "nombre": "Cuenta Cristian", "saldo": 3000, "titular": "Cristian" },
+    { "id": 3, "nombre": "Cuenta Admin", "saldo": 10000, "titular": "Admin" },
+    { "id": 4, "nombre": "Cuenta Test", "saldo": 2000, "titular": "Test" }
+  ],
+  "transacciones": [
+    { "id": 1, "de": 1, "hacia": 2, "monto": 500, "fecha": "2026-10-08T10:30:00", "estado": "completada" },
+    { "id": 2, "de": 3, "hacia": 1, "monto": 1000, "fecha": "2026-10-09T14:15:00", "estado": "completada" }
+  ]
+}
