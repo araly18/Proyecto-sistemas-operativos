@@ -2,82 +2,114 @@
 sidebar_position: 1
 ---
 
-# Perspectivas del sistema operativo y evolución histórica
+# Evolución histórica de los sistemas operativos
 
-Esta página responde dos preguntas que van de la mano: **¿qué es y qué hace un sistema operativo, según desde dónde se le mire?** y **¿por qué existe tal como lo conocemos hoy?** La segunda tiene una respuesta histórica: cada tipo de sistema operativo nació para resolver el mayor desperdicio de la etapa anterior.
+La evolución de los sistemas operativos está relacionada con la necesidad de aprovechar mejor los recursos de las computadoras, reducir el trabajo manual y facilitar la interacción de los usuarios. Cada etapa incorporó mecanismos que respondían a las limitaciones de los sistemas anteriores.
 
-## 1. Las dos perspectivas del sistema operativo
-
-Un sistema operativo (SO) es el software fundamental que administra el hardware y el software de una computadora y sirve de intermediario entre el usuario y la máquina. Sin él, un equipo es prácticamente inútil. Pero ese papel se puede describir desde dos puntos de vista complementarios.
-
-| | Perspectiva del usuario | Perspectiva del sistema |
-|---|---|---|
-| El SO es... | Una **máquina extendida** (o máquina virtual) | Un **gestor de recursos** |
-| Enfoque | De arriba hacia abajo: ocultar la complejidad del hardware | De abajo hacia arriba: repartir bien los recursos físicos |
-| Objetivo principal | Facilidad de uso | Eficiencia y justicia en el reparto |
-| Qué hace | Ofrece una interfaz sencilla para ejecutar programas y manejar archivos sin conocer detalles de bajo nivel | Asigna CPU, memoria, disco y dispositivos de E/S entre los programas y usuarios que los piden, resolviendo conflictos |
-| Ejemplo cotidiano | Guardar un archivo sin saber en qué sectores del disco queda | Decidir qué programa usa el procesador en cada instante |
-
-Estas dos visiones son las que describen los textos clásicos de la materia: el SO como máquina extendida (esconde el hardware real detrás de una abstracción más cómoda) y como administrador de recursos (evita que varios programas se pisen al usar los mismos dispositivos). Ninguna es "la correcta": un SO bien diseñado cumple ambas a la vez.
-
-## 2. Evolución histórica
+## 1. Línea de tiempo
 
 ```mermaid
 flowchart LR
-    A["Años 40 y 50<br/>Sin SO: operación manual"] --> B["Años 50<br/>Monitores residentes y lotes (batch)"]
+    A["Años 40 y 50<br/>Operación manual"] --> B["Años 50<br/>Monitores residentes y lotes"]
     B --> C["Años 60<br/>Multiprogramación"]
     C --> D["Años 60 y 70<br/>Tiempo compartido"]
-    D --> E["Años 80 y 90<br/>Computadoras personales y sistemas distribuidos"]
-    E --> F["Hoy<br/>Tiempo real, virtualización y contenedores"]
+    D --> E["Años 70 y 80<br/>Computadoras personales"]
+    E --> F["Años 80 y 90<br/>Sistemas distribuidos"]
+    F --> G["De los 2000 a hoy<br/>Virtualización y contenedores"]
+    G --> H["Sistemas de tiempo real<br/>Presentes en distintas etapas"]
 ```
 
-### 2.1 Sin sistema operativo (años 40 y 50)
+## 2. Principales etapas históricas
 
-Los primeros computadores se programaban directamente en lenguaje máquina y los operaba una persona frente a una consola. Cada programador reservaba un bloque de tiempo, cargaba su programa a mano y lo ejecutaba. **Problema:** gran parte del tiempo se perdía en la preparación (cargar, configurar, retirar resultados), con la costosa CPU parada.
+### 2.1. Sistemas sin sistema operativo (años 40 y 50)
 
-### 2.2 Monitores residentes y sistemas por lotes (años 50)
+Las primeras computadoras se programaban directamente en lenguaje máquina y eran operadas manualmente. Los programadores debían cargar los programas, preparar la ejecución y recoger los resultados.
 
-La solución fue agrupar trabajos parecidos en **lotes** (*batch*) y encargar su secuencia a un programa pequeño que **permanece siempre en memoria**: el **monitor residente**. Este lee un trabajo, lo ejecuta y, al terminar, carga automáticamente el siguiente, guiado por instrucciones de control en el propio lote. Se considera la primera forma de sistema operativo. **Limitación:** durante una operación lenta de entrada o salida, la CPU quedaba ociosa esperando, y el usuario no podía interactuar con su programa mientras corría.
+**Limitación:** se perdía mucho tiempo en la preparación de cada trabajo y el procesador podía permanecer inactivo durante esas operaciones.
 
-### 2.3 Multiprogramación (años 60)
+### 2.2. Monitores residentes y sistemas por lotes (años 50)
 
-Si un programa se detiene a esperar un dispositivo lento, ¿por qué no ejecutar otro mientras tanto? La **multiprogramación** mantiene varios programas en memoria a la vez y conmuta la CPU entre ellos cuando uno se bloquea por E/S. Aquí aparecen necesidades que siguen vigentes: **gestión de memoria**, **protección** entre programas e **interrupciones**. Familias de computadores como la IBM System/360 (1964) y su sistema OS/360 llevaron estas ideas a la práctica, a costa de una complejidad enorme. **Limitación:** los usuarios seguían sin interactuar directamente con sus programas.
+Los sistemas por lotes (*batch*) permitieron agrupar trabajos para ejecutarlos consecutivamente. Un programa denominado **monitor residente** permanecía en memoria y controlaba la secuencia de ejecución, cargando el siguiente trabajo cuando terminaba el anterior.
 
-### 2.4 Tiempo compartido (años 60 y 70)
+**Ventaja:** se redujo la intervención manual entre trabajos.
 
-El **tiempo compartido** extiende la multiprogramación para dar **interactividad**: muchos usuarios trabajan a la vez desde terminales, y el sistema reparte la CPU en rebanadas de tiempo muy cortas (*quantum*) para que cada uno sienta que tiene la máquina para sí. Es el origen directo de los planificadores como Round Robin que se estudian en la Unidad 2. Proyectos históricos de esta etapa: CTSS (MIT, 1961), Multics (desde 1964) y UNIX (Bell Labs, 1969), del que descienden, directa o conceptualmente, Linux (1991) y macOS.
+**Limitación:** el procesador podía quedar esperando mientras se realizaban operaciones de entrada y salida.
 
-### 2.5 Computadoras personales (años 70 y 80)
+### 2.3. Multiprogramación (años 60)
 
-Con los microprocesadores, la computación llegó a una sola persona. Los primeros sistemas, como MS-DOS (1981), eran **monousuario y monotarea**, y con pocos mecanismos de protección. Después incorporaron multitarea, interfaces gráficas y protección entre procesos, recuperando casi todo lo que ya existía en los sistemas grandes.
+La multiprogramación permitió mantener varios programas en memoria simultáneamente. Cuando uno debía esperar una operación de entrada o salida, el sistema operativo podía asignar el procesador a otro programa.
 
-### 2.6 Sistemas distribuidos (años 80 y 90)
+La IBM System/360 y su sistema OS/360 fueron importantes en la implementación de estas ideas.
 
-Cuando las computadoras se conectaron en red, surgieron sistemas que coordinan **varias máquinas** para trabajar juntas, compartiendo recursos y repartiendo carga. Su meta es que el conjunto parezca un solo sistema. **Beneficios:** escalabilidad, compartir recursos y tolerancia a fallos. **Costo:** coordinar procesos y datos a través de una red (retrasos, fallos parciales, sincronización). Los clústeres y la nube actuales son sus descendientes.
+**Ventaja:** mejor aprovechamiento del procesador.
 
-### 2.7 Sistemas de tiempo real
+**Limitación:** aumentó la complejidad de la administración de memoria, la planificación y la protección entre programas.
 
-En un **sistema de tiempo real** no basta con que el resultado sea correcto: debe llegar **antes de un plazo**. Se usan en industria, automóviles y equipos médicos. Se habla de tiempo real *estricto* (perder un plazo es un fallo grave) y *flexible* (perderlo degrada la calidad). Ejemplos: FreeRTOS, QNX y VxWorks, el sistema que usaba la sonda Mars Pathfinder en 1997.
+### 2.4. Tiempo compartido (años 60 y 70)
 
-### 2.8 Virtualización y contenedores (de los 2000 a hoy)
+El tiempo compartido extendió la multiprogramación para permitir que varios usuarios interactuaran con el sistema. El procesador se asignaba a cada proceso durante intervalos breves, conocidos como *quantum*.
 
-La **virtualización** permite que un mismo equipo físico ejecute varios sistemas operativos aislados, cada uno en una **máquina virtual** gestionada por un *hipervisor*. Los **contenedores** (popularizados por Docker en 2013) dan aislamiento más ligero: comparten el **mismo kernel** del anfitrión y se aíslan con funciones del propio Linux como los *namespaces* y los *cgroups*. Son más rápidos de iniciar y consumen menos, a cambio de un aislamiento menos estricto que el de una máquina virtual.
+Entre los sistemas y proyectos representativos se encuentran CTSS, Multics y UNIX.
 
-Un ejemplo cercano: las prácticas de este curso se hicieron en una máquina virtual Linux o en **WSL2**, que ejecuta un kernel de Linux real dentro de una máquina virtual ligera integrada en Windows.
+**Ventaja:** permitió una interacción más directa con la computadora.
 
-## 3. Resumen: cada etapa resolvió un desperdicio
+**Limitación:** exigió una planificación más compleja y mayores mecanismos de protección.
 
-| Etapa | Qué problema resolvió | Qué limitación dejó |
+### 2.5. Computadoras personales (años 70 y 80)
+
+El desarrollo de los microprocesadores favoreció la expansión de las computadoras personales. Sistemas como MS-DOS, lanzado en 1981, ofrecían un entorno para ejecutar programas en equipos individuales.
+
+Posteriormente se extendieron las interfaces gráficas, la multitarea y los mecanismos de protección entre procesos.
+
+**Ventaja:** la computación se volvió más accesible para las personas y las organizaciones.
+
+**Limitación inicial:** algunos sistemas personales tenían capacidades limitadas de multitarea y protección.
+
+### 2.6. Sistemas distribuidos (años 80 y 90)
+
+Los sistemas distribuidos permiten coordinar varias computadoras conectadas mediante una red para compartir recursos y ejecutar tareas.
+
+Entre sus beneficios se encuentran la escalabilidad y el uso compartido de recursos. Sin embargo, deben gestionar retrasos de comunicación, fallos parciales y problemas de coordinación entre máquinas.
+
+Los clústeres y numerosos servicios en la nube utilizan principios relacionados con este enfoque.
+
+### 2.7. Sistemas de tiempo real
+
+Los sistemas de tiempo real deben producir respuestas dentro de plazos determinados. No basta con obtener un resultado correcto: también importa que llegue a tiempo.
+
+- **Tiempo real estricto:** incumplir un plazo puede representar un fallo grave.
+- **Tiempo real flexible:** incumplirlo puede reducir la calidad del servicio sin provocar necesariamente un fallo total.
+
+Se utilizan en aplicaciones industriales, automotrices y médicas. Algunos sistemas conocidos en este ámbito son FreeRTOS, QNX y VxWorks.
+
+### 2.8. Virtualización y contenedores (de los años 2000 hasta la actualidad)
+
+La virtualización permite ejecutar varias máquinas virtuales en un mismo equipo físico mediante un hipervisor. Cada máquina virtual puede disponer de su propio sistema operativo.
+
+Los contenedores ofrecen aislamiento de aplicaciones con menor sobrecarga en muchos escenarios. En Linux, mecanismos como *namespaces* y *cgroups* permiten aislar recursos y controlar su utilización.
+
+La diferencia principal es que las máquinas virtuales pueden ejecutar kernels independientes, mientras que los contenedores tradicionales comparten el kernel del sistema anfitrión.
+
+## 3. Comparación de las etapas
+
+| Etapa | Necesidad atendida | Limitación o desafío |
 |---|---|---|
-| Sin SO | (punto de partida) | Mucho tiempo perdido en preparación manual |
-| Monitor residente y lotes | Eliminó la preparación manual entre trabajos | CPU ociosa durante la E/S, sin interacción |
-| Multiprogramación | Aprovechó la CPU mientras otro programa espera E/S | Exige gestión de memoria y protección, sin interactividad |
-| Tiempo compartido | Dio interactividad a varios usuarios | Planificación y protección mucho más complejas |
-| Computadoras personales | Computación accesible a una sola persona | Un solo usuario, poca protección al inicio |
-| Sistemas distribuidos | Compartir recursos, escalar y tolerar fallos | Coordinación a través de la red |
-| Virtualización y contenedores | Aprovechar el hardware y aislar cargas | Sobrecarga (máquinas virtuales) o menor aislamiento (contenedores) |
+| Operación manual | Ejecutar programas en las primeras computadoras | Mucha preparación manual |
+| Sistemas por lotes | Automatizar la secuencia de trabajos | Esperas durante las operaciones de entrada y salida |
+| Multiprogramación | Aprovechar la CPU durante las esperas | Mayor complejidad de administración y protección |
+| Tiempo compartido | Facilitar la interacción de varios usuarios | Planificación y protección más exigentes |
+| Computadoras personales | Acercar la computación al usuario individual | Capacidades limitadas en los primeros sistemas |
+| Sistemas distribuidos | Compartir recursos entre computadoras | Coordinación y comunicación por red |
+| Tiempo real | Responder dentro de plazos específicos | Cumplimiento de restricciones temporales |
+| Virtualización y contenedores | Aislar entornos y aprovechar el hardware | Costos de virtualización y diferencias de aislamiento |
+
+## 4. Análisis de la evolución
+
+La historia de los sistemas operativos muestra una transición desde la ejecución manual hacia entornos capaces de administrar múltiples procesos, atender a varios usuarios y coordinar recursos distribuidos.
+
+Los avances no eliminaron todos los problemas anteriores; incorporaron nuevas soluciones y también nuevos desafíos. La protección, la administración de memoria, la planificación y la utilización eficiente de los recursos siguen siendo funciones fundamentales en los sistemas actuales.
 
 ## Referencias
 
 - Stallings, W. (2005). *Sistemas operativos: aspectos internos y principios de diseño* (5.ª ed.). Pearson Educación.
-- Tanenbaum, A. S., & Bos, H. (2015). *Modern operating systems* (4.ª ed.). Pearson.
+- Tanenbaum, A. S., y Bos, H. (2015). *Modern Operating Systems* (4.ª ed.). Pearson.

@@ -111,10 +111,10 @@ const config = {
           {
             title: 'Docs',
             items: [
-              {
-                label: 'Unidad 1',
-                to: '/docs/intro',
-              },
+            {
+               label: 'Unidad 1',
+               to: '/docs/unidad-1-introduccion/fundamentos-hardware-software',
+            },
             ],
           },
           {

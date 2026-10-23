@@ -1,0 +1,122 @@
+---
+sidebar_position: 1
+---
+
+# Administración de Memoria
+
+## Introducción
+
+La memoria principal es uno de los recursos que el sistema operativo debe administrar durante la ejecución de los programas. Cuando una aplicación se inicia, sus instrucciones y los datos que necesita deben estar disponibles en un espacio de memoria al que el procesador pueda acceder. El problema aparece cuando varios procesos deben ejecutarse al mismo tiempo y competir por una cantidad limitada de memoria física.
+
+La administración de memoria comprende los mecanismos que permiten asignar espacio a los procesos, llevar un control de las regiones ocupadas y libres, traducir direcciones y evitar que un proceso acceda indebidamente a la memoria de otro. La técnica utilizada influye en el aprovechamiento de la memoria, la protección y el rendimiento del sistema.
+
+No existe una única forma de organizar la memoria para todas las situaciones. Los métodos más sencillos asignan regiones continuas, mientras que otros permiten distribuir un proceso en distintas zonas físicas. Entre estos últimos se encuentran la paginación y, con un enfoque diferente, la segmentación.
+
+## 1. Funciones de la administración de memoria
+
+El sistema operativo necesita mantener información sobre el uso de la memoria para decidir dónde ubicar los procesos y cómo permitirles acceder a sus datos. Entre sus principales funciones se encuentran:
+
+- **Seguimiento de la memoria:** identificar qué regiones están ocupadas, cuáles permanecen libres y qué proceso utiliza cada una.
+- **Asignación y liberación:** reservar memoria cuando un proceso la necesita y recuperar el espacio cuando deja de utilizarlo.
+- **Traducción de direcciones:** relacionar las direcciones que utiliza un proceso con las ubicaciones correspondientes en la memoria física.
+- **Protección:** impedir accesos no autorizados a regiones pertenecientes al sistema operativo o a otros procesos.
+- **Uso eficiente de los recursos:** reducir el desperdicio de espacio y permitir que la memoria disponible se distribuya de acuerdo con las necesidades del sistema.
+
+Estas funciones están relacionadas. Por ejemplo, no basta con encontrar espacio libre para un proceso: también es necesario comprobar que pueda utilizarlo de manera segura y que sus direcciones se interpreten correctamente.
+
+## 2. Sistemas monoprogramados y multiprogramados
+
+La forma de administrar la memoria depende, entre otros factores, de cuántos procesos se mantienen disponibles para su ejecución.
+
+### 2.1 Sistemas monoprogramados
+
+En un esquema monoprogramado, la memoria destinada a los programas de usuario aloja un solo programa a la vez, además del espacio reservado al sistema operativo. Es una organización sencilla porque existe una menor competencia entre procesos por la memoria.
+
+Su principal limitación es el aprovechamiento de los recursos. Si el programa se detiene temporalmente mientras espera una operación de entrada o salida, puede quedar tiempo de procesamiento sin utilizarse, aunque el comportamiento concreto depende de la arquitectura y del sistema.
+
+### 2.2 Sistemas multiprogramados
+
+En un sistema multiprogramado se mantienen varios procesos en memoria para que el sistema operativo pueda alternar su ejecución. Cuando uno espera una operación de entrada o salida, otro proceso puede utilizar el procesador, siempre que esté listo para ejecutarse.
+
+Esta organización mejora el aprovechamiento del procesador, pero aumenta la complejidad de la administración de memoria. El sistema debe controlar las regiones asignadas a cada proceso, traducir sus direcciones y evitar que interfieran entre sí.
+
+La multiprogramación no significa que todos los procesos se ejecuten simultáneamente en un solo núcleo. Significa que varios procesos pueden permanecer disponibles y compartir los recursos del sistema mediante la planificación de la CPU.
+
+## 3. Direcciones lógicas y físicas
+
+Para comprender la administración de memoria es necesario distinguir dos tipos de direcciones.
+
+**Dirección lógica o virtual:** es la dirección que utiliza un proceso dentro de su espacio de direcciones. El programa no necesita conocer directamente la ubicación física en la que se encuentran sus datos.
+
+**Dirección física:** identifica una ubicación real de la memoria principal.
+
+La unidad de administración de memoria, conocida como MMU (*Memory Management Unit*), participa en la traducción de direcciones según el mecanismo de memoria utilizado. De esta forma, una dirección generada durante la ejecución puede corresponder a una ubicación física distinta de su valor lógico.
+
+Separar ambos espacios permite que los procesos utilicen sus propias direcciones sin necesitar ubicaciones físicas exclusivas o consecutivas para todo su contenido.
+
+## 4. Reubicación de memoria
+
+La reubicación consiste en adaptar las referencias de memoria de un programa a la ubicación donde se encuentra cargado o donde debe ejecutarse. Es importante porque un proceso no siempre se carga en la misma región física y, en ciertos esquemas, puede cambiar de ubicación durante su ejecución.
+
+En una asignación contigua sencilla, la dirección física puede calcularse mediante un registro base y una dirección lógica válida:
+
+**Dirección física = registro base + dirección lógica**
+
+Por ejemplo, si un proceso tiene una dirección base de 12 000 y genera una dirección lógica de 350, la dirección física correspondiente sería:
+
+12 000 + 350 = 12 350
+
+Este cálculo supone que la dirección lógica se encuentra dentro del espacio permitido para el proceso. En sistemas con paginación o segmentación, la traducción requiere consultar las estructuras correspondientes a cada técnica.
+
+La reubicación permite separar la ubicación física del proceso de las direcciones que utiliza durante su ejecución.
+
+## 5. Protección de memoria
+
+La protección de memoria busca evitar que un proceso acceda a regiones para las cuales no tiene autorización. Sin este control, un error de programación podría sobrescribir datos de otro proceso o afectar estructuras utilizadas por el sistema operativo.
+
+En una organización con registros base y límite, el sistema puede comprobar que una dirección lógica se encuentre dentro del rango permitido antes de formar la dirección física. En otros mecanismos se emplean permisos y bits de protección asociados a páginas o segmentos.
+
+La protección no depende únicamente del sistema operativo: requiere mecanismos de hardware que permitan comprobar los accesos durante la ejecución. Si una operación viola las restricciones establecidas, el procesador puede generar una excepción para que el sistema operativo gestione la situación.
+
+## 6. Técnicas de asignación de memoria
+
+Las técnicas de administración de memoria se diferencian por la forma en que organizan los procesos y las regiones disponibles.
+
+| Técnica | Organización | Característica principal |
+|---|---|---|
+| Asignación contigua | Cada proceso ocupa una región física continua. | Es sencilla de administrar, pero puede presentar fragmentación externa. |
+| Paginación | El espacio lógico se divide en páginas y la memoria física en marcos. | Permite distribuir las páginas en marcos no consecutivos. |
+| Segmentación | El espacio lógico se divide en segmentos de tamaño variable. | Representa regiones con significado lógico, como código y datos. |
+
+La elección de una técnica implica considerar el tamaño de los procesos, la organización de las direcciones, el costo de mantener las estructuras de control y los mecanismos de protección necesarios.
+
+## 7. Fragmentación y aprovechamiento de memoria
+
+La fragmentación aparece cuando parte de la memoria disponible no puede aprovecharse de la forma requerida por el mecanismo de asignación.
+
+La **fragmentación interna** se presenta cuando una región asignada es mayor que el espacio que realmente necesita el proceso. El espacio sobrante queda dentro de la región reservada.
+
+La **fragmentación externa** aparece cuando el espacio libre se distribuye en bloques separados. La cantidad total de memoria libre puede ser suficiente, pero no existir un bloque continuo con el tamaño requerido.
+
+La compactación puede reunir espacios libres dispersos en ciertos esquemas de asignación contigua, aunque implica mover regiones ocupadas y actualizar la información de sus ubicaciones. En la paginación, la asignación de páginas a marcos evita la fragmentación externa en la asignación ordinaria de marcos, pero puede producir fragmentación interna.
+
+## 8. Relación entre las técnicas y el funcionamiento del sistema
+
+La administración de memoria no consiste solamente en encontrar un lugar donde cargar un programa. También debe mantener la correspondencia entre direcciones, controlar los permisos de acceso y recuperar los recursos cuando dejan de utilizarse.
+
+La asignación contigua permite estudiar los problemas de selección de bloques y fragmentación. La paginación aborda la necesidad de distribuir procesos en marcos no consecutivos, mientras que la segmentación organiza el espacio lógico en regiones de tamaño variable. Cada técnica resuelve ciertos problemas y presenta sus propias limitaciones.
+
+Comprender estas diferencias permite analizar por qué los sistemas operativos utilizan mecanismos de traducción y protección más elaborados que una simple reserva de espacio.
+
+## Conclusión
+
+La administración de memoria coordina la asignación, el seguimiento, la traducción y la protección del espacio utilizado por los procesos. Su complejidad aumenta cuando varios procesos comparten los recursos del equipo, porque es necesario evitar conflictos y mantener un uso adecuado de la memoria física.
+
+Las técnicas de asignación contigua, paginación y segmentación ofrecen distintas formas de organizar ese recurso. Analizar su funcionamiento, sus mecanismos de traducción y sus limitaciones proporciona la base para comprender cómo un sistema operativo mantiene los procesos separados y permite que utilicen la memoria de manera controlada.
+
+## Bibliografía y fuentes de consulta
+
+- Silberschatz, A., Galvin, P. B. y Gagne, G. *Operating System Concepts*. Wiley. Capítulo sobre memoria principal. [Consultar el capítulo en O'Reilly](https://www.oreilly.com/library/view/operating-system-concepts/9780470128725/silb_9780470128725_oeb_c08_r1.html).
+- Rajam, M. A. *Memory Management – Paging I*. INFLIBNET Centre. [Consultar material universitario sobre paginación](https://ebooks.inflibnet.ac.in/csp3/chapter/memory-management-paging-i/).
+- Rajam, M. A. *Memory Management – Segmentation*. INFLIBNET Centre. [Consultar material universitario sobre segmentación](https://ebooks.inflibnet.ac.in/csp3/chapter/memory-management-segmentation/).
+- Carnegie Mellon University. *Chapter 7: Memory Management*. Material académico basado en *Operating System Concepts*, décima edición. [Consultar el material](https://www2.cs.science.cmu.ac.th/courses/204341/lib/exe/fetch.php?media=ch7_memorymanagement_forstudent_handout.pdf).

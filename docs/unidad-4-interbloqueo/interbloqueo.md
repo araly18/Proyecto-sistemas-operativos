@@ -2,6 +2,7 @@
 sidebar_position: 1
 ---
 
+
 # Interbloqueos: qué son y cómo se reconocen
 
 Un interbloqueo (en inglés, *deadlock*) pasa cuando un grupo de procesos se queda esperando para siempre porque cada uno necesita algo que tiene otro del mismo grupo. Ninguno puede avanzar, y tampoco pueden arreglarlo solos, porque lo único que los desbloquearía es justo lo que están esperando.
