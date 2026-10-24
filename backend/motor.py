@@ -3,6 +3,8 @@ Motor de transacciones concurrentes + detector de interbloqueos.
 
 - Hilos REALES del SO (threading.Thread), verificables con ps -eLf o /proc/self/task.
 - Un threading.Lock por cuenta protege cada transferencia (exclusion mutua).
+- Modo "sin proteccion": el MISMO codigo de transferencia pero sin locks, para provocar
+  y demostrar una condicion de carrera real (la suma de saldos se descuadra).
 - Hilo guardian: construye el grafo de espera leyendo el estado REAL de los locks
   (quien tiene cada lock y quien espera cada lock), busca ciclos con DFS y recupera
   abortando a una victima (liberacion forzada de sus locks).
@@ -11,6 +13,7 @@ Motor de transacciones concurrentes + detector de interbloqueos.
 """
 import os
 import random
+import subprocess
 import threading
 import time
 from collections import deque
@@ -31,6 +34,9 @@ class Cuenta:
         self.lock = threading.Lock()
 
 
+# ---------------------------------------------------------------------------
+# Evidencia de hilos reales del sistema operativo
+# ---------------------------------------------------------------------------
 def hilos_so():
     """Hilos reales del proceso del servidor, leidos de /proc/self/task (Linux)."""
     ruta = '/proc/self/task'
@@ -51,6 +57,50 @@ def hilos_so():
                 'fuente': 'threading.enumerate (no es Linux)'}
 
 
+def _ejecutar_ps(args):
+    """Ejecuta ps y deja solo el encabezado y las filas (hilos) de ESTE proceso."""
+    pid = str(os.getpid())
+    try:
+        r = subprocess.run(args, capture_output=True, text=True, timeout=3)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    lineas = r.stdout.splitlines()
+    if r.returncode != 0 or not lineas:
+        return None
+    sel = [lineas[0]]
+    for linea in lineas[1:]:
+        cols = linea.split()
+        if pid in cols[:2]:          # PID es la 1.a columna (-o pid,...) o la 2.a (-f)
+            sel.append(linea)
+    return '\n'.join(sel)
+
+
+def ps_hilos():
+    """Salida REAL de ps -eLf (y de ps con nombres de hilo) filtrada al proceso del servidor."""
+    pid = os.getpid()
+    completo = _ejecutar_ps(['ps', '-eLf'])
+    nombres = _ejecutar_ps(['ps', '-eLo', 'pid,lwp,nlwp,stat,comm'])
+    if completo is None:
+        # ps no esta instalado en este servidor: se arma una tabla equivalente desde /proc
+        filas = ['PID      LWP  STAT  COMM   (generado desde /proc/self/task porque ps no esta disponible)']
+        try:
+            for tid in sorted(int(t) for t in os.listdir('/proc/self/task')):
+                with open(f'/proc/self/task/{tid}/stat') as f:
+                    s = f.read()
+                comm = s[s.index('(') + 1:s.rindex(')')]
+                estado = s[s.rindex(')') + 2:].split()[0]
+                filas.append(f'{pid:<8} {tid:<4} {estado:<5} {comm}')
+        except OSError:
+            filas.append('/proc no disponible')
+        return {'pid': pid, 'fuente': '/proc (ps no disponible)',
+                'ps_eLf': '\n'.join(filas), 'ps_nombres': ''}
+    return {'pid': pid, 'fuente': 'ps (comando real del sistema operativo)',
+            'ps_eLf': completo, 'ps_nombres': nombres or ''}
+
+
+# ---------------------------------------------------------------------------
+# Deteccion de ciclos (DFS)
+# ---------------------------------------------------------------------------
 def buscar_ciclo(grafo):
     """DFS con colores sobre un grafo {nodo: [vecinos]}. Devuelve la lista del ciclo o None."""
     color = {}   # 1 = en la pila actual, 2 = terminado
@@ -79,12 +129,12 @@ def buscar_ciclo(grafo):
 
 
 class Motor:
-    def __init__(self, forzado=False):
+    def __init__(self, forzado=False, sin_proteccion=False):
         self.forzado = forzado
+        self.sin_proteccion = sin_proteccion
         self.cuentas = [Cuenta(i) for i in range(N_CUENTAS)]
         self.n_hilos = 2 if forzado else 4
         self._m = threading.Lock()        # protege dueno, espera y contadores
-        self._saldos = threading.Lock()   # hace atomico el par debito/credito (para medir la suma)
         self._lev = threading.Lock()
         self.dueno = {}                   # id cuenta -> hilo que tiene su lock
         self.espera = {}                  # hilo -> id cuenta que esta esperando
@@ -101,6 +151,7 @@ class Motor:
         self.eventos = deque(maxlen=40)
         self.ciclo = []
         self._t_recup = 0
+        self._ult_saldos = [SALDO_INICIAL] * N_CUENTAS
         self.t0 = time.time()
 
     # ---------- utilidades ----------
@@ -114,14 +165,21 @@ class Motor:
     # ---------- ciclo de vida ----------
     def iniciar(self):
         self.t0 = time.time()
-        self._log('normal', 'Motor iniciado' + (' (modo forzado)' if self.forzado else ' (modo natural)'))
+        if self.sin_proteccion:
+            modo = 'SIN PROTECCION (condicion de carrera)'
+        elif self.forzado:
+            modo = 'forzado (deadlock inyectado)'
+        else:
+            modo = 'natural'
+        self._log('normal', f'Motor iniciado en modo {modo}')
         for i in range(self.n_hilos):
             h = threading.Thread(target=self._worker, args=(f'T{i}', i), name=f'T{i}', daemon=True)
             self.hilos.append(h)
             h.start()
-        g = threading.Thread(target=self._guardian, name='Guardian', daemon=True)
-        self.hilos.append(g)
-        g.start()
+        if not self.sin_proteccion:
+            g = threading.Thread(target=self._guardian, name='Guardian', daemon=True)
+            self.hilos.append(g)
+            g.start()
 
     def detener(self):
         self._parar.set()
@@ -151,8 +209,32 @@ class Motor:
             self.dueno.pop(cuenta.id, None)
         cuenta.lock.release()
 
+    # ---------- seccion critica ----------
+    def _mover_dinero(self, a, b, monto):
+        """SECCION CRITICA. Es identica con y sin proteccion; la unica diferencia es si el
+        hilo tiene los locks de las dos cuentas. time.sleep(0) cede la CPU entre leer y
+        escribir (lectura-modificacion-escritura), lo que hace visible la carrera."""
+        origen, destino = self.cuentas[a], self.cuentas[b]
+        if origen.saldo < monto:
+            return False
+        s = origen.saldo
+        time.sleep(0)
+        origen.saldo = s - monto
+        t = destino.saldo
+        time.sleep(0)
+        destino.saldo = t + monto
+        return True
+
     # ---------- transacciones ----------
     def _transferir(self, nombre, a, b, monto, primero, segundo, forzar):
+        if self.sin_proteccion:
+            ok = self._mover_dinero(a, b, monto)      # sin locks: condicion de carrera
+            with self._m:
+                if ok:
+                    self.completadas += 1
+                else:
+                    self.rechazadas += 1
+            return
         p, s = self.cuentas[primero], self.cuentas[segundo]
         self._adquirir(nombre, p)
         try:
@@ -170,14 +252,7 @@ class Motor:
                 time.sleep(random.uniform(0.002, 0.02))   # tiempo de trabajo con el primer lock
             self._adquirir(nombre, s)
             try:
-                origen, destino = self.cuentas[a], self.cuentas[b]
-                with self._saldos:
-                    if origen.saldo >= monto:
-                        origen.saldo -= monto
-                        destino.saldo += monto
-                        ok = True
-                    else:
-                        ok = False
+                ok = self._mover_dinero(a, b, monto)
                 with self._m:
                     if ok:
                         self.completadas += 1
@@ -221,7 +296,10 @@ class Motor:
                                           f'C{a}->C{b} (${monto}) se reintentara')
                 time.sleep(random.uniform(0.05, 0.2))
                 continue
-            time.sleep(1.5 if forzar else random.uniform(0.01, 0.05))
+            if self.sin_proteccion:
+                time.sleep(0.0005)
+            else:
+                time.sleep(1.5 if forzar else random.uniform(0.01, 0.05))
 
     # ---------- guardian: RAG + DFS + recuperacion ----------
     def _grafo_espera(self):
@@ -254,16 +332,38 @@ class Motor:
                 self._t_recup = time.time()
                 self._log('normal', 'Ciclo resuelto: el sistema continua')
 
+    # ---------- auditoria de saldos ----------
+    def _auditar(self):
+        """Lectura consistente de los saldos. Con proteccion se toman los locks de TODAS las
+        cuentas (en orden de id y con timeout, sin registrarse en el RAG): mientras se tienen
+        no puede haber ninguna transferencia a medias, asi que la suma es exacta. Si no se
+        consiguen (por ejemplo, durante un deadlock) se conserva la ultima lectura exacta."""
+        if self.sin_proteccion:
+            return [c.saldo for c in self.cuentas]     # lectura sin locks: refleja la carrera
+        tomados = []
+        try:
+            for c in self.cuentas:
+                if not c.lock.acquire(timeout=0.1):
+                    return None
+                tomados.append(c)
+            return [c.saldo for c in self.cuentas]
+        finally:
+            for c in reversed(tomados):
+                c.lock.release()
+
     # ---------- estado para la API ----------
     def estado(self):
+        saldos = self._auditar()
+        if saldos is None:
+            saldos = self._ult_saldos
+        else:
+            self._ult_saldos = saldos
         with self._m:
             dueno = dict(self.dueno)
             espera = dict(self.espera)
             cont = {'completadas': self.completadas, 'rechazadas': self.rechazadas,
                     'abortadas': self.abortadas, 'reintentadas': self.reintentadas,
                     'deadlocks': self.deadlocks}
-        with self._saldos:
-            saldos = [c.saldo for c in self.cuentas]
         with self._lev:
             eventos = list(self.eventos)
         nombres = [f'T{i}' for i in range(self.n_hilos)]
@@ -279,6 +379,7 @@ class Motor:
         return {
             'activo': not self._parar.is_set(),
             'forzado': self.forzado,
+            'sin_proteccion': self.sin_proteccion,
             'fase': fase,
             'tiempo': round(time.time() - self.t0, 1),
             'cuentas': [{'id': i, 'saldo': s, 'dueno': dueno.get(i),
