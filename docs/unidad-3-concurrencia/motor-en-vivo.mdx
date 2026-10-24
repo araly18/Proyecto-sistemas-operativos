@@ -1,0 +1,18 @@
+---
+title: Motor en vivo
+sidebar_position: 1
+---
+
+import MotorEnVivo from '@site/src/components/MotorEnVivo';
+
+# Motor de Transacciones Concurrentes y Detector de Interbloqueos
+
+Esta página se conecta al motor real, que corre en un servidor Linux de Render con hilos del sistema operativo, un `threading.Lock` por cuenta, un hilo guardián con DFS y recuperación por liberación forzada.
+
+1. Pulsa **Iniciar modo forzado**. Durante unos 5 segundos hay operación normal.
+2. Luego dos hilos se bloquean entre sí: el guardián detecta el ciclo, aborta una víctima y reintenta su transferencia.
+3. La suma de los saldos debe mantenerse constante todo el tiempo.
+
+La primera vez puede tardar hasta 50 segundos porque el servicio gratuito se duerme por inactividad.
+
+<MotorEnVivo />
