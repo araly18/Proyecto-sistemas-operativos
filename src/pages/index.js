@@ -27,7 +27,7 @@ export default function HomePage() {
       subtitulo: 'Sincronización de procesos',
       icono: '🔄',
       color: '#ffb74d',
-      link: '#'
+      link: '/docs/unidad-3-concurrencia/concurrencia-exclusion-mutua-semaforos'
     },
     {
       numero: 4,
@@ -35,7 +35,7 @@ export default function HomePage() {
       subtitulo: 'Interbloqueos y prevención',
       icono: '🔗',
       color: '#ef5350',
-      link: '#'
+      link: '/docs/unidad-4-interbloqueo/interbloqueo'
     },
     {
       numero: 5,
@@ -43,7 +43,7 @@ export default function HomePage() {
       subtitulo: 'Administración de RAM',
       icono: '💾',
       color: '#ba68c8',
-      link: '#'
+      link: '/docs/unidad-5-memoria/administracion-de-memoria'
     }
   ];
 

@@ -1,0 +1,32 @@
+---
+sidebar_position: 10
+---
+
+# Grafo de asignación de recursos
+
+Un grafo de asignación de recursos (RAG) muestra quién tiene cada recurso y quién lo espera. Si en el grafo aparece un ciclo, hay interbloqueo, cuando cada recurso tiene una sola unidad.
+
+## Cómo leerlo
+
+- **Círculos:** procesos.
+- **Cuadros:** recursos. Dentro se muestra quién lo tiene.
+- **Flecha sólida (recurso → proceso):** el recurso está asignado a ese proceso.
+- **Flecha punteada (proceso → recurso):** el proceso espera ese recurso.
+- **Ciclo:** una cadena de esperas que vuelve al proceso inicial.
+
+## Escenarios para probar
+
+- **Cruce de dos procesos:** P1 tiene R1 y pide R2; P2 tiene R2 y pide R1. Hay interbloqueo. Al recuperar, se termina P2 y su recurso pasa a P1.
+- **Cadena de espera:** P1 espera a P2, y P2 espera a P3, pero P3 no espera a nadie. No hay ciclo, así que la espera termina cuando P3 libere R3.
+- **Ciclo de tres procesos:** el interbloqueo aparece con más de dos participantes.
+- **Sin conflictos:** pide recursos libres y observa que no hay esperas.
+
+## Preguntas para practicar
+
+1. ¿Por qué un ciclo garantiza interbloqueo solo si cada recurso tiene una sola unidad?
+2. ¿Qué condición de Coffman se rompe cuando el sistema termina un proceso para recuperarse?
+3. ¿Qué pasaría en el cruce si P2 liberara R2 antes de pedir R1?
+
+import SimuladorGrafoRAG from '@site/src/components/SimuladorGrafoRAG';
+
+<SimuladorGrafoRAG />
