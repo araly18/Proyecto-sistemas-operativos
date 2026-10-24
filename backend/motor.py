@@ -252,4 +252,46 @@ class Motor:
             elif self.ciclo:
                 self.ciclo = []
                 self._t_recup = time.time()
-                self._log('normal',
+                self._log('normal', 'Ciclo resuelto: el sistema continua')
+
+    # ---------- estado para la API ----------
+    def estado(self):
+        with self._m:
+            dueno = dict(self.dueno)
+            espera = dict(self.espera)
+            cont = {'completadas': self.completadas, 'rechazadas': self.rechazadas,
+                    'abortadas': self.abortadas, 'reintentadas': self.reintentadas,
+                    'deadlocks': self.deadlocks}
+        with self._saldos:
+            saldos = [c.saldo for c in self.cuentas]
+        with self._lev:
+            eventos = list(self.eventos)
+        nombres = [f'T{i}' for i in range(self.n_hilos)]
+        aristas = [{'de': h, 'a': f'C{c}', 'tipo': 'solicitud'} for h, c in espera.items()]
+        aristas += [{'de': f'C{c}', 'a': h, 'tipo': 'asignacion'} for c, h in dueno.items()]
+        if self.ciclo:
+            fase = 'deadlock'
+        elif time.time() - self._t_recup < 3 and self._t_recup:
+            fase = 'recuperado'
+        else:
+            fase = 'normal'
+        esperado = SALDO_INICIAL * N_CUENTAS
+        return {
+            'activo': not self._parar.is_set(),
+            'forzado': self.forzado,
+            'fase': fase,
+            'tiempo': round(time.time() - self.t0, 1),
+            'cuentas': [{'id': i, 'saldo': s, 'dueno': dueno.get(i),
+                         'esperando': [h for h, c in espera.items() if c == i]}
+                        for i, s in enumerate(saldos)],
+            'suma': sum(saldos),
+            'suma_esperada': esperado,
+            'integridad': sum(saldos) == esperado,
+            'hilos': [{'nombre': n, 'tid': self.tids.get(n),
+                       'estado': 'bloqueado' if n in espera else 'activo'} for n in nombres],
+            'rag': {'procesos': nombres, 'recursos': [f'C{i}' for i in range(N_CUENTAS)],
+                    'aristas': aristas},
+            'ciclo': self.ciclo,
+            'contadores': cont,
+            'eventos': eventos,
+        }
