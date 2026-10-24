@@ -27,6 +27,14 @@ const boton = {
   marginBottom: 8,
   color: '#fff',
 };
+const pre = {
+  fontSize: 12,
+  overflowX: 'auto',
+  padding: 8,
+  borderRadius: 6,
+  background: 'var(--ifm-color-emphasis-100)',
+  margin: '6px 0',
+};
 
 function Grafo({ rag, ciclo }) {
   const W = 560;
@@ -117,6 +125,7 @@ export default function MotorEnVivo() {
   const [est, setEst] = useState(null);
   const [error, setError] = useState('');
   const [ocupado, setOcupado] = useState(false);
+  const [ps, setPs] = useState(null);
   const pidiendo = useRef(false);
 
   async function pedirEstado() {
@@ -156,7 +165,18 @@ export default function MotorEnVivo() {
     }
   }
 
+  async function pedirPs() {
+    try {
+      const r = await fetch(`${API}/api/ps`);
+      setPs(await r.json());
+    } catch (e) {
+      setError('No se pudo ejecutar ps en el servidor.');
+    }
+  }
+
   const hayDatos = est && est.cuentas;
+  const modo = !hayDatos ? '' : est.sin_proteccion ? 'SIN PROTECCIÓN' : est.forzado ? 'forzado' : 'natural';
+  const diferencia = hayDatos ? est.suma - est.suma_esperada : 0;
 
   return (
     <div>
@@ -166,7 +186,7 @@ export default function MotorEnVivo() {
           disabled={ocupado}
           onClick={() => enviar('/api/iniciar', { forzado: true })}
         >
-          Iniciar modo forzado
+          Iniciar modo forzado (deadlock)
         </button>
         <button
           style={{ ...boton, background: '#2a6fdb' }}
@@ -174,6 +194,13 @@ export default function MotorEnVivo() {
           onClick={() => enviar('/api/iniciar', { forzado: false })}
         >
           Iniciar modo natural
+        </button>
+        <button
+          style={{ ...boton, background: '#e67e22' }}
+          disabled={ocupado}
+          onClick={() => enviar('/api/iniciar', { sin_proteccion: true })}
+        >
+          Iniciar SIN protección (condición de carrera)
         </button>
         <button
           style={{ ...boton, background: '#6c757d' }}
@@ -184,6 +211,7 @@ export default function MotorEnVivo() {
         </button>
         {error && <div style={{ color: '#d63a3a', marginTop: 8 }}>{error}</div>}
         {!error && !hayDatos && <div>Conectando con el motor...</div>}
+        {!error && est && !est.cuentas && <div>El motor está detenido. Elige un modo para iniciarlo.</div>}
       </div>
 
       {hayDatos && (
@@ -202,7 +230,7 @@ export default function MotorEnVivo() {
               {est.fase}
             </span>
             <span style={{ marginLeft: 16 }}>
-              Modo: <strong>{est.forzado ? 'forzado' : 'natural'}</strong>
+              Modo: <strong>{modo}</strong>
             </span>
             <span style={{ marginLeft: 16 }}>
               Motor: <strong>{est.activo ? 'activo' : 'detenido'}</strong>
@@ -220,6 +248,19 @@ export default function MotorEnVivo() {
                 {est.integridad ? '✔ constante' : '✘ inconsistente'}
               </span>
             </div>
+            {!est.integridad && (
+              <div style={{ color: '#d63a3a', marginTop: 4 }}>
+                Condición de carrera: la suma se desvió {diferencia > 0 ? '+' : ''}
+                {diferencia}. Los hilos leyeron y escribieron saldos sin locks y se pisaron las
+                actualizaciones.
+              </div>
+            )}
+            {est.integridad && !est.sin_proteccion && (
+              <div style={{ marginTop: 4 }}>
+                Con un lock por cuenta, las transferencias no se pisan: la suma se mantiene exacta
+                bajo carga.
+              </div>
+            )}
             <div style={{ marginTop: 6 }}>
               Completadas: <strong>{est.contadores.completadas}</strong> · Rechazadas:{' '}
               <strong>{est.contadores.rechazadas}</strong> · Deadlocks detectados:{' '}
@@ -289,6 +330,18 @@ export default function MotorEnVivo() {
               </>
             ) : (
               <div>Sin datos de hilos.</div>
+            )}
+            <button style={{ ...boton, background: '#2a6fdb', marginTop: 8 }} onClick={pedirPs}>
+              Ejecutar ps -eLf en el servidor
+            </button>
+            {ps && (
+              <>
+                <div style={{ fontSize: 13 }}>
+                  Fuente: <code>{ps.fuente}</code> (solo las filas del PID {ps.pid})
+                </div>
+                <pre style={pre}>{ps.ps_eLf}</pre>
+                {ps.ps_nombres && <pre style={pre}>{ps.ps_nombres}</pre>}
+              </>
             )}
           </div>
 
